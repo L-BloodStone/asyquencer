@@ -47,7 +47,7 @@ fetchURI.add([<function>, <function>, ...])
 #### Breaking a sequence by returning `'break'` string.
 
 ```js
-const { serialAsyq } = require('./')
+const { serialAsyq } = require('asyquencer')
 
 const dummy = new serialAsyq()
 
@@ -94,6 +94,21 @@ fetchURI.add((value) => {
 fetchURI.run()
 ```
 
+When a sequence is broken by returning `'break'` string, the `run()` method returns `lastValue` and `allValues` until the `break` fucntion. Breaking a sequence is useful when use it with conditional statement.
+
+```js
+const { serialAsyq } = require('asyquencer')
+
+const dummy = new serialAsyq()
+
+dummy.add(() => 1)
+dummy.add(() => 2)
+dummy.add((num) => num === 0 ? true : "break")
+dummy.add(() => 3)      //will not run
+
+dummy.run()     // returns { `lastValue` 2, `allValues` [1, 2], then() }
+```
+
 #### `.run.then()`
 
 Sometimes it is needed to execute specific task after the sequence has been finished.
@@ -128,3 +143,13 @@ async function coolStuff() {
     const data = await fetchURI.run((_, allValues) => allValues)
 }
 ```
+
+The `run()` method actually returns an object with three property `{ lastValue, allValue, then }`.
+Next example is equivalent to the previous two examples.
+
+```js
+async function coolStuff() {
+    const data = await fetchURI.run().allValues
+}
+```
+
