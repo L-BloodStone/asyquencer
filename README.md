@@ -28,7 +28,7 @@ const { serialAsyq } = require("asyquencer")
 const fetchURI = new serialAsyq()
 ```
 
-#### `.add()`
+#### `.add(cb)`
 To add functions to the sequence use `add()` method. Adding a function only adds the function to the sequence.
 It doesn't execute anything. The `add()` method will return `true` if it adds a function successfully. 
      
@@ -58,7 +58,7 @@ dummy.add(() => 3)      //will not run
 ```
 This will break the sequence and will not execute the next function.
 
-#### `.run()`
+#### `.run(cb)`
 To run all provided function sequencially use `run()` method. It will execute the functions sequencially in the order it was defined.
 
 ```js
@@ -94,7 +94,9 @@ fetchURI.add((value) => {
 fetchURI.run()
 ```
 
-When a sequence is broken by returning `'break'` string, the `run()` method returns `lastValue` and `allValues` until the `break` fucntion. Breaking a sequence is useful when use it with conditional statement.
+When a sequence is broken by returning `'break'` string, the `run()` method returns `lastValue` and `allValues` until the `break` fucntion. `run()` method is an asynchronous function, to get the return value it must be used inside an async function.
+Breaking a sequence can be useful when use it is used with conditional statement.
+
 
 ```js
 const { serialAsyq } = require('asyquencer')
@@ -106,37 +108,9 @@ dummy.add(() => 2)
 dummy.add((num) => num === 0 ? true : "break")
 dummy.add(() => 3)      //will not run
 
-dummy.run()     // returns { `lastValue` 2, `allValues` [1, 2], then() }
+dummy.run()     // returns { `lastValue` 2, `allValues` [1, 2], next() }
 ```
-
-#### `.run.then()`
-
-Sometimes it is needed to execute specific task after the sequence has been finished.
-This can be achived by calling the `run().then()` method.
-`then()` method will execute after the all functions of the sequence.
-The `then()` method accepts a callback function and two arguments will be passed to that callback.
-The first argument is `lastValue` the return value of the last function of the sequence,
-second one is `allValues` an array of all the values return by each function of the sequence.
-
-```js
-fetchURI.run().then((lastValue, allValues) => {
-    // Do something cool
-})
-```
-
-The `run().then()` method also returns the value of the callback function.
-
-```js
-async function coolStuff() {
-    // `data` holds the return value of the cb inside `.then()`.
-    const data = await fetchURI.run().then((_, allValues) => allValues)
-    
-    //do some coolStuff with data
-}
-```
-
-There is a shortcut available for the `then()` method. It is possible to pass the callback directly inside `run()` method.
-Next example is equivalent to the previous one. And it will also return the value of the callback function.
+Sometimes it is needed to execute specific task after the sequence has been finished. This can be achived by calling the `run()` method with a function as an argument.This callback function will execute after the all functions of the sequence has been finished executing. Two arguments will be passed to that callback. The first argument is `lastValue` the return value of the last function of the sequence, second one is `allValues` an array of all the values return by each function of the sequence.
 
 ```js
 async function coolStuff() {
@@ -144,12 +118,67 @@ async function coolStuff() {
 }
 ```
 
-The `run()` method actually returns an object with three property `{ lastValue, allValue, then }`.
-Next example is equivalent to the previous two examples.
+The `run()` method actually returns an object with three property `{ lastValue, allValue, next }`.
 
 ```js
 async function coolStuff() {
-    const data = await fetchURI.run().allValues
+    const data = await fetchURI.run()
+    console.log(data.allValue)
 }
 ```
 
+
+#### `this.removeNext([index[, cb]])`
+
+`removeNext()` method is usefull when is the needed to remove function at the runtime or to change the the function.
+But, the traditional `function` must be used to use this method. 
+If no argument is passed to the method, the next function of the sequence will be cleared with an empty function which returns `false`.
+
+```js
+const a = require('asyquencer')
+
+const dummy = new a.serialAsyq()
+
+dummy.add(() => 0)
+dummy.add(() => 1)
+dummy.add(() => 2)
+dummy.add(function() {
+    this.removeNext() 
+    return 3
+})
+dummy.add(() => 4)    // this function will be removed.
+dummy.add(() => 5)
+
+dummy.run((_, allValues) => console.log(allValues))     // `[ 0, 1, 2, 3, false, 5 ]`
+```
+
+`removeNext()` accepts two optional arguments. First is the `index` of the function to be removed and second is a `callback`
+function, if some change of that function is required. Changing the next function requires to pass `false` to the first argument.
+
+```js
+const a = require('asyquencer')
+
+const dummy = new a.serialAsyq()
+
+dummy.add(() => 0)
+dummy.add(() => 1)
+dummy.add(() => 2)
+dummy.add(function(lastValue) {
+    if (lastValue === 2) this.removeNext( false, () => 404 ) 
+    return 3
+})
+dummy.add(() => 4)    // this function will be changed.
+dummy.add(() => 5)
+
+dummy.run((_, allValues) => console.log(allValues))     // `[ 0, 1, 2, 3, 404, 5 ]`
+```
+
+Any other index can be accessed with passing a integer to the `index` argument.
+
+```js
+dummy.add(function(lastValue) {
+    if (lastValue === 2) this.removeNext( 4, () => 404 ) 
+    return 3
+})
+dummy.run((_, allValues) => console.log(allValues))     // `[ 0, 1, 2, 3, 4, 404 ]`
+```
