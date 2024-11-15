@@ -14,17 +14,17 @@ $ npm install https://github.com/L-BloodStone/asyquencer
 ## Usage
 
 ### Serial Asynchronous Sequence
-#### `serialAsyq()`
+#### `SerialTask()`
 
-When it is required to execute multiple functions serially and get the return value of one asynchronous function before the next function starts executing, it is helpful to use the 'serialAsyq`. The `serialAsyq` constructor accepts a single array of functions, or it can be empty. 
+When it is required to execute multiple functions serially and get the return value of one asynchronous function before the next function starts executing, it is helpful to use the 'SerialTask`. The `SerialTask` constructor accepts a single array of functions, or it can be empty. 
 
 To create a serial sequence -
 ```js
-const { serialAsyq } = require("asyquencer")
+const { SerialTask } = require("asyquencer")
 
-// const fetchURI = new serialAsyq([<function>, <function>, ...])
+// const fetchURI = new SerialTask([<function>, <function>, ...])
 // or
-const fetchURI = new serialAsyq()
+const fetchURI = new SerialTask()
 ```
 
 #### `.add(cb)`
@@ -37,7 +37,12 @@ fetchURI.add(() => {
 })
 ```
 
-The `add()` method also accepts an array of functions.
+The `add()` method also accepts an array of functions. And it is also possible to chain methods.
+
+```js
+fetchURI.add(() => "function")
+    .add(() => "another function")
+```
 
 ```
 fetchURI.add([<function>, <function>, ...])
@@ -46,9 +51,9 @@ fetchURI.add([<function>, <function>, ...])
 #### Breaking a sequence by returning a `'break'` string.
 
 ```js
-const { serialAsyq } = require('asyquencer')
+const { SerialTask } = require('asyquencer')
 
-const dummy = new serialAsyq()
+const dummy = new SerialTask()
 
 dummy.add(() => 1)
 dummy.add(() => 2)
@@ -69,9 +74,9 @@ The initial function will receive a `false` boolean value.
 If any function does not return anything, next function will receive `false`. 
 ** A common mistate is made when writing array functions with curly braces. **
 ```js
-const { serialAsyq } = require('asyquencer')
+const { SerialTask } = require('asyquencer')
 
-const fetchURI = new serialAsyq()
+const fetchURI = new SerialTask()
 
 fetchURI.add(() => {
     return fetch('http://github.com').then((response) => response.text())
@@ -96,9 +101,9 @@ When a sequence is broken by returning a `'break'` string, the `run()` method re
 Breaking a sequence can be useful when it is used with a conditional statement.
 
 ```js
-const { serialAsyq } = require('asyquencer')
+const { SerialTask } = require('asyquencer')
 
-const dummy = new serialAsyq()
+const dummy = new SerialTask()
 
 dummy.add(() => 1)
 dummy.add(() => 2)
@@ -115,67 +120,11 @@ async function coolStuff() {
 }
 ```
 
-The `run()` method actually returns an object with three property `{ lastValue, allValue, next }`.
+The `run()` method returns an object with three property `{ lastValue, allValues, next }`.
 
 ```js
 async function coolStuff() {
     const data = await fetchURI.run()
     console.log(data.allValue)
 }
-```
-
-
-#### `this.removeNext([index[, cb]])`
-
-`removeNext()` method is useful when it is needed to remove a function at runtime or to change the function.
-But the traditional `function` must be used to use this method. 
-If no argument is passed to the method, the next function of the sequence will be cleared with an empty function that returns `false`.
-
-```js
-const a = require('asyquencer')
-
-const dummy = new a.serialAsyq()
-
-dummy.add(() => 0)
-dummy.add(() => 1)
-dummy.add(() => 2)
-dummy.add(function() {
-    this.removeNext() 
-    return 3
-})
-dummy.add(() => 4)    // this function will be removed.
-dummy.add(() => 5)
-
-dummy.run((_, allValues) => console.log(allValues))     // `[ 0, 1, 2, 3, false, 5 ]`
-```
-
-`removeNext()` accepts two optional arguments. First is the `index` of the function to be removed, and second is a `callback`
-function, if some change to that function is required. Changing the next function requires passing `false` to the first argument.
-
-```js
-const a = require('asyquencer')
-
-const dummy = new a.serialAsyq()
-
-dummy.add(() => 0)
-dummy.add(() => 1)
-dummy.add(() => 2)
-dummy.add(function(lastValue) {
-    if (lastValue === 2) this.removeNext( false, () => 404 ) 
-    return 3
-})
-dummy.add(() => 4)    // this function will be changed.
-dummy.add(() => 5)
-
-dummy.run((_, allValues) => console.log(allValues))     // `[ 0, 1, 2, 3, 404, 5 ]`
-```
-
-Any other index can be accessed by passing an integer to the `index` argument.
-
-```js
-dummy.add(function(lastValue) {
-    if (lastValue === 2) this.removeNext( 4, () => 404 ) 
-    return 3
-})
-dummy.run((_, allValues) => console.log(allValues))     // `[ 0, 1, 2, 3, 4, 404 ]`
 ```
