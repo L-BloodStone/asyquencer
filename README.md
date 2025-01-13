@@ -1,5 +1,5 @@
 # asyquencer
-**A small node.js library to run asynchronous functions and promises serially or in parallel.**
+**A small nodejs library to run asynchronous functions and promises serially or in parallel.**
 
 ## Contents
 * [Serial Asynchronous Sequence](#Serial-Asynchronous-Sequence)
